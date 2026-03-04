@@ -1,0 +1,419 @@
+// ============================================================
+// English Learning Web App — Database Design v1
+// DB: PostgreSQL 16+  |  Date: 2026-03-03
+// Import at: https://dbdiagram.io
+//
+// Scalability notes:
+//   - UUID PKs for distributed/sharded environments
+//   - reading_sessions, srs_reviews, user_points_log are
+//     RANGE-partitioned by date (add yearly partitions)
+//   - user_id is denormalized in high-volume tables so
+//     queries can be pruned without joins
+//   - JSONB used for variable-shape data (definitions,
+//     examples, collocations, reward config)
+// ============================================================
+
+// ─────────────────────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────────────────────
+
+Table users {
+  id               uuid        [pk, default: `gen_random_uuid()`]
+  email            varchar(255) [unique, not null]
+  username         varchar(100) [unique, not null]
+  password_hash    varchar(255) [not null]
+  is_premium       boolean      [not null, default: false]
+  daily_word_limit int          [not null, default: 5,  note: 'Raised for premium users']
+  total_points     int          [not null, default: 0]
+  tier             varchar(20)  [not null, default: 'NONE', note: 'NONE|BEGINNER|TRYING|EFFORT|PERSISTENT|ACHIEVEMENT']
+  current_streak   int          [not null, default: 0]
+  longest_streak   int          [not null, default: 0]
+  created_at       timestamptz  [not null, default: `now()`]
+  updated_at       timestamptz  [not null, default: `now()`]
+}
+
+// Stores versioned daily goals; effective_from allows history
+Table user_goals {
+  id                   uuid        [pk, default: `gen_random_uuid()`]
+  user_id              uuid        [not null, ref: > users.id]
+  reading_minutes_goal int         [not null, default: 10]
+  vocab_count_goal     int         [not null, default: 5]
+  effective_from       date        [not null]
+  created_at           timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, effective_from)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONTENT
+// ─────────────────────────────────────────────────────────────
+
+Table topics {
+  id            uuid        [pk, default: `gen_random_uuid()`]
+  name          varchar(100) [not null]
+  slug          varchar(100) [unique, not null]
+  description   text
+  display_order int          [not null, default: 0]
+  is_active     boolean      [not null, default: true]
+  created_at    timestamptz  [not null, default: `now()`]
+}
+
+Table articles {
+  id                     uuid        [pk, default: `gen_random_uuid()`]
+  topic_id               uuid        [ref: > topics.id]
+  title                  varchar(500) [not null]
+  content                text         [not null]
+  word_count             int
+  estimated_read_seconds int
+  language_level         varchar(5)   [note: 'A1|A2|B1|B2|C1|C2']
+  source_url             varchar(1000)
+  is_active              boolean      [not null, default: true]
+  published_at           timestamptz
+  created_at             timestamptz  [not null, default: `now()`]
+  updated_at             timestamptz  [not null, default: `now()`]
+
+  indexes {
+    topic_id
+    language_level
+    (published_at) [name: 'idx_articles_published']
+  }
+}
+
+// Global word dictionary — shared across all users
+Table words {
+  id             uuid        [pk, default: `gen_random_uuid()`]
+  word           varchar(200) [unique, not null]
+  phonetic       varchar(200)
+  part_of_speech varchar(50)
+  definitions    jsonb        [not null, default: `'[]'`, note: '[{lang:"vi"|"en", meaning:"..."}]']
+  examples       jsonb        [not null, default: `'[]'`, note: '[{sentence:"...", translation:"..."}]']
+  collocations   jsonb        [not null, default: `'[]'`, note: '["common phrase 1", ...]']
+  created_at     timestamptz  [not null, default: `now()`]
+  updated_at     timestamptz  [not null, default: `now()`]
+
+  indexes {
+    word
+  }
+}
+
+// Many-to-many: which words appear in which articles
+Table article_words {
+  article_id uuid [not null, ref: > articles.id]
+  word_id    uuid [not null, ref: > words.id]
+
+  indexes {
+    (article_id, word_id) [pk]
+    word_id
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// READING SESSIONS
+// ─────────────────────────────────────────────────────────────
+
+// Partitioned by started_at (range, yearly) for scalability
+Table reading_sessions {
+  id               uuid        [pk, default: `gen_random_uuid()`]
+  user_id          uuid        [not null, ref: > users.id]
+  article_id       uuid        [not null, ref: > articles.id]
+  started_at       timestamptz [not null, default: `now()`]
+  ended_at         timestamptz
+  duration_seconds int
+  goal_achieved    boolean     [not null, default: false]
+
+  indexes {
+    (user_id, started_at)
+    article_id
+  }
+
+  note: 'PARTITION BY RANGE (started_at)'
+}
+
+// Tracks every word clicked during reading for the save-prompt popup
+Table word_click_events {
+  id                 uuid        [pk, default: `gen_random_uuid()`]
+  user_id            uuid        [not null, ref: > users.id]
+  article_id         uuid        [not null, ref: > articles.id]
+  word_id            uuid        [not null, ref: > words.id]
+  reading_session_id uuid        [ref: > reading_sessions.id]
+  clicked_at         timestamptz [not null, default: `now()`]
+
+  indexes {
+    reading_session_id
+    (user_id, clicked_at)
+  }
+
+  note: 'Temporary; cleared after user confirms which words to save'
+}
+
+// ─────────────────────────────────────────────────────────────
+// VOCABULARY LEARNING — SRS (Spaced Repetition System)
+// ─────────────────────────────────────────────────────────────
+
+// One row per user×word; tracks SRS state and application level
+Table user_vocabulary {
+  id                      uuid        [pk, default: `gen_random_uuid()`]
+  user_id                 uuid        [not null, ref: > users.id]
+  word_id                 uuid        [not null, ref: > words.id]
+
+  // SRS memory fields
+  memory_state            varchar(20) [not null, default: 'NEW', note: 'NEW|LEARNING|REVIEW|MASTERED|RELEARNING']
+  srs_interval_minutes    int         [not null, default: 0]
+  srs_due_at              timestamptz
+  review_count            int         [not null, default: 0]
+  last_reviewed_at        timestamptz
+
+  // Vocabulary application assessment (independent of SRS)
+  application_level       int         [not null, default: 0, note: '0=locked; 1–6 active levels']
+  application_unlocked_at timestamptz [note: 'Set when word first reaches EASY']
+
+  saved_at                timestamptz [not null, default: `now()`]
+  source_article_id       uuid        [ref: > articles.id, note: 'Article where word was first saved']
+
+  indexes {
+    (user_id, word_id) [unique]
+    user_id
+    (user_id, srs_due_at)    [name: 'idx_uv_due']
+    (user_id, memory_state)
+    (user_id, application_level)
+  }
+}
+
+// Immutable log of every SRS review event
+// Partitioned by reviewed_at (range, yearly)
+Table srs_reviews {
+  id                        uuid        [pk, default: `gen_random_uuid()`]
+  user_vocabulary_id        uuid        [not null, ref: > user_vocabulary.id]
+  user_id                   uuid        [not null, note: 'Denormalized for partition pruning']
+  response_time_ms          int         [not null]
+  grade                     varchar(10) [not null, note: 'EASY|GOOD|HARD|AGAIN']
+  phase                     varchar(10) [not null, note: 'LEARNING|REVIEW']
+  previous_interval_minutes int
+  new_interval_minutes      int
+  reviewed_at               timestamptz [not null, default: `now()`]
+
+  indexes {
+    user_vocabulary_id
+    (user_id, reviewed_at)
+  }
+
+  note: 'PARTITION BY RANGE (reviewed_at)'
+}
+
+// ─────────────────────────────────────────────────────────────
+// DAILY PROGRESS & STREAKS
+// ─────────────────────────────────────────────────────────────
+
+// One row per user per calendar day — streak source of truth
+Table daily_progress {
+  id                    uuid        [pk, default: `gen_random_uuid()`]
+  user_id               uuid        [not null, ref: > users.id]
+  date                  date        [not null]
+
+  // Reading leg
+  reading_seconds       int         [not null, default: 0]
+  reading_goal_achieved boolean     [not null, default: false]
+
+  // Vocabulary learning leg
+  words_saved           int         [not null, default: 0]
+  words_reached_easy    int         [not null, default: 0]
+  vocab_goal_achieved   boolean     [not null, default: false]
+
+  // Review leg (≥50% of vocab goal)
+  reviews_completed     int         [not null, default: 0]
+  review_goal_achieved  boolean     [not null, default: false]
+
+  // Streak snapshot
+  streak_maintained     boolean     [not null, default: false]
+  streak_count          int         [not null, default: 0]
+
+  created_at            timestamptz [not null, default: `now()`]
+  updated_at            timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, date) [unique]
+    user_id
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// VOCABULARY APPLICATION ASSESSMENT (6-level system)
+// ─────────────────────────────────────────────────────────────
+
+// Each attempt at an application task (LV1–LV6) for a saved word
+Table application_tasks {
+  id                   uuid        [pk, default: `gen_random_uuid()`]
+  user_vocabulary_id   uuid        [not null, ref: > user_vocabulary.id]
+  user_id              uuid        [not null, note: 'Denormalized']
+  level                int         [not null, note: '1–6']
+  task_type            varchar(50) [not null, note: 'FLASHCARD|WRITE_SENTENCE|CLOZE_TEST|MULTIPLE_CHOICE|COLLOCATION|WRITE_PARAGRAPH|REACTIVATION']
+  prompt               text
+  user_response        text
+  is_correct           boolean
+  ai_naturalness_score float       [note: 'LV4+: AI score 0–100']
+  is_forced_usage      boolean     [note: 'LV5 flag: word used unnaturally']
+  response_time_ms     int
+  week_reference       date        [note: 'ISO Monday — groups tasks into weekly buckets']
+  completed_at         timestamptz
+  created_at           timestamptz [not null, default: `now()`]
+
+  indexes {
+    user_vocabulary_id
+    (user_id, completed_at)
+    (user_id, week_reference)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// WEEKLY REVIEW
+// ─────────────────────────────────────────────────────────────
+
+// System-generated 6-word weekly set per user
+Table weekly_review_sets {
+  id             uuid        [pk, default: `gen_random_uuid()`]
+  user_id        uuid        [not null, ref: > users.id]
+  week_start     date        [not null, note: 'ISO Monday']
+  // [{user_vocabulary_id, word_id, selection_reason: NEAR_LEVELUP|NEAR_DUE|HIGHEST_LEVEL|UNUSED}]
+  selected_words jsonb       [not null, default: `'[]'`]
+  fixed_reward   jsonb       [note: '{description, value} — announced at week start']
+  is_completed   boolean     [not null, default: false]
+  completed_at   timestamptz
+  created_at     timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, week_start) [unique]
+    user_id
+  }
+}
+
+// Bridge: individual tasks making up a weekly review
+Table weekly_review_tasks {
+  id                   uuid        [pk, default: `gen_random_uuid()`]
+  weekly_review_set_id uuid        [not null, ref: > weekly_review_sets.id]
+  user_vocabulary_id   uuid        [not null, ref: > user_vocabulary.id]
+  application_task_id  uuid        [ref: > application_tasks.id]
+  is_completed         boolean     [not null, default: false]
+  completed_at         timestamptz
+
+  indexes {
+    weekly_review_set_id
+    user_vocabulary_id
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// MISSIONS
+// ─────────────────────────────────────────────────────────────
+
+Table daily_missions {
+  id                  uuid        [pk, default: `gen_random_uuid()`]
+  user_id             uuid        [not null, ref: > users.id]
+  date                date        [not null]
+  easy_words_target   int         [not null, default: 5]
+  easy_words_achieved int         [not null, default: 0]
+  app_review_target   int         [not null, default: 1]
+  app_review_achieved int         [not null, default: 0]
+  is_completed        boolean     [not null, default: false]
+  spin_reward_id      uuid        [ref: > rewards.id, note: 'Set when spin is claimed']
+  completed_at        timestamptz
+
+  indexes {
+    (user_id, date) [unique]
+    user_id
+  }
+}
+
+Table weekly_missions {
+  id                   uuid        [pk, default: `gen_random_uuid()`]
+  user_id              uuid        [not null, ref: > users.id]
+  week_start           date        [not null, note: 'ISO Monday']
+  easy_words_target    int         [not null, default: 20]
+  easy_words_achieved  int         [not null, default: 0]
+  app_review_target    int         [not null, default: 6]
+  app_review_achieved  int         [not null, default: 0]
+  is_completed         boolean     [not null, default: false]
+  dice_count           int         [note: 'Number of dice rolled on completion']
+  dice_reward_id       uuid        [ref: > rewards.id, note: 'Set when dice reward is claimed']
+  completed_at         timestamptz
+
+  indexes {
+    (user_id, week_start) [unique]
+    user_id
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// REWARDS
+// ─────────────────────────────────────────────────────────────
+
+// Template catalog for spin / dice prizes
+Table reward_catalog {
+  id               uuid        [pk, default: `gen_random_uuid()`]
+  name             varchar(200) [not null]
+  description      text
+  reward_type      varchar(50)  [not null, note: 'POINTS|BADGE|EXTRA_WORD_SLOT|PREMIUM_DAY']
+  value            jsonb        [not null, note: '{amount} or {days} etc.']
+  spin_probability float        [note: 'Weight for random daily spin (0–1, sums to 1)']
+  is_active        boolean      [not null, default: true]
+  created_at       timestamptz  [not null, default: `now()`]
+}
+
+// Actual reward instances granted to users
+Table rewards {
+  id            uuid        [pk, default: `gen_random_uuid()`]
+  user_id       uuid        [not null, ref: > users.id]
+  catalog_id    uuid        [ref: > reward_catalog.id]
+  reward_source varchar(20) [not null, note: 'DAILY_SPIN|WEEKLY_DICE']
+  dice_count    int         [note: 'Multiplier for weekly dice rewards']
+  earned_at     timestamptz [not null, default: `now()`]
+  redeemed_at   timestamptz
+
+  indexes {
+    user_id
+    (user_id, earned_at)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// POINTS & LEADERBOARD
+// ─────────────────────────────────────────────────────────────
+
+// Immutable event log — source of truth for points
+// Partitioned by created_at (range, yearly)
+Table user_points_log {
+  id           uuid        [pk, default: `gen_random_uuid()`]
+  user_id      uuid        [not null, ref: > users.id]
+  points_delta int         [not null, note: 'Positive = earned; negative = spent']
+  reason       varchar(50) [not null, note: 'WORD_EASY|APP_TASK_COMPLETE|REWARD_REDEEM']
+  reference_id uuid        [note: 'FK to the triggering record (polymorphic)']
+  total_after  int         [not null, note: 'Denormalized running total at this event']
+  created_at   timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at)
+    created_at
+  }
+
+  note: 'PARTITION BY RANGE (created_at)'
+}
+
+// Periodic snapshots powering leaderboard pages
+// (rebuild nightly or on-demand; avoid real-time queries on users table)
+Table leaderboard_snapshots {
+  id           uuid        [pk, default: `gen_random_uuid()`]
+  user_id      uuid        [not null, ref: > users.id]
+  tier         varchar(20) [not null, note: 'NONE|BEGINNER|TRYING|EFFORT|PERSISTENT|ACHIEVEMENT']
+  points       int         [not null]
+  rank         int         [not null]
+  period_start date        [not null]
+  period_end   date
+  promoted     boolean     [not null, default: false, note: 'True if user was top-15 and moved up']
+  snapshot_at  timestamptz [not null, default: `now()`]
+
+  indexes {
+    (tier, period_start, rank)
+    (user_id, period_start)
+  }
+}
