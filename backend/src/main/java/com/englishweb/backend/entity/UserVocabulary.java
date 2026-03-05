@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -26,26 +25,30 @@ public class UserVocabulary {
     private Word word;
 
     // SRS fields
-    @Column(nullable = false, columnDefinition = "memory_state")
+    @Builder.Default
+    @Column(nullable = false, length = 20)
     private String memoryState = "NEW"; // NEW|LEARNING|REVIEW|MASTERED|RELEARNING
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer srsIntervalMinutes = 0;
 
     private Instant srsDueAt;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer reviewCount = 0;
 
     private Instant lastReviewedAt;
 
     // Application assessment
+    @Builder.Default
     @Column(nullable = false)
     private Integer applicationLevel = 0; // 0=locked, 1-6
 
     private Instant applicationUnlockedAt;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant savedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)

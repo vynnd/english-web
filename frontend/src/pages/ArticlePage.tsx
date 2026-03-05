@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, BookmarkPlus, X, Volume2 } from 'lucide-react'
 import { articlesApi } from '../api/articles'
 import { wordsApi, type WordDetail, type WordTooltip } from '../api/words'
@@ -29,14 +29,19 @@ interface SavePopupState {
 export function ArticlePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const startTimeRef = useRef<number>(Date.now())
   const sessionIdRef = useRef<string | null>(null)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLongPressRef = useRef(false)
+  // Local registry of clicked words — keyed by wordId to deduplicate
+  const clickedWordsRef = useRef<Map<string, PendingWord>>(new Map())
 
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const [wordModal, setWordModal] = useState<WordDetail | null>(null)
   const [wordModalLoading, setWordModalLoading] = useState(false)
+  const [highlightedWords, setHighlightedWords] = useState<Set<string>>(new Set())
+  const [savedWords, setSavedWords] = useState<Set<string>>(new Set())
   const [savePopup, setSavePopup] = useState<SavePopupState>({
     open: false, words: [], sessionId: '', articleId: '', selectedIds: new Set(),
   })
@@ -47,34 +52,40 @@ export function ArticlePage() {
     enabled: !!id,
   })
 
-  // Start reading session when article loads
+  // Start reading session + load previously saved words for this article
   useEffect(() => {
     if (!id) return
     readingSessionsApi.start(id).then(res => {
       sessionIdRef.current = res.data.data.sessionId
       startTimeRef.current = Date.now()
     }).catch(() => {})
-
-    return () => {
-      // End session on unmount
-      if (sessionIdRef.current) {
-        const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
-        readingSessionsApi.end(sessionIdRef.current, durationSeconds).then(async () => {
-          const sessionId = sessionIdRef.current!
-          const pending = await readingSessionsApi.getPendingWords(sessionId)
-          if (pending.data.data.length > 0) {
-            setSavePopup({
-              open: true,
-              words: pending.data.data,
-              sessionId,
-              articleId: id,
-              selectedIds: new Set(pending.data.data.map(w => w.wordId)),
-            })
-          }
-        }).catch(() => {})
-      }
-    }
+    vocabularyApi.getSavedInArticle(id).then(res => {
+      setSavedWords(new Set(res.data.data.map((w: string) => w.toLowerCase())))
+    }).catch(() => {})
   }, [id])
+
+  const handleLeave = useCallback(async () => {
+    // End reading session in background (fire-and-forget)
+    if (sessionIdRef.current) {
+      const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
+      readingSessionsApi.end(sessionIdRef.current, durationSeconds).catch(() => {})
+      sessionIdRef.current = null
+    }
+
+    // Show save popup from local clicked-words registry
+    const words = Array.from(clickedWordsRef.current.values())
+    if (words.length > 0) {
+      setSavePopup({
+        open: true,
+        words,
+        sessionId: '',
+        articleId: id!,
+        selectedIds: new Set(words.map(w => w.wordId)),
+      })
+    } else {
+      navigate(-1)
+    }
+  }, [id, navigate])
 
   // Hide tooltip on outside click
   useEffect(() => {
@@ -96,12 +107,22 @@ export function ArticlePage() {
         readingSessionsApi.trackWordClick(sessionIdRef.current, wordData.id).catch(() => {})
       }
 
+      // Only add to save popup if not already saved
+      if (!savedWords.has(word.toLowerCase())) {
+        clickedWordsRef.current.set(wordData.id, {
+          wordId: wordData.id,
+          word: wordData.word,
+          partOfSpeech: wordData.partOfSpeech,
+        })
+        setHighlightedWords(prev => new Set(prev).add(word.toLowerCase()))
+      }
+
       const rect = (e.target as HTMLElement).getBoundingClientRect()
       const x = Math.min(rect.left, window.innerWidth - 300)
       const y = rect.bottom + 8
       setTooltip({ word, x, y, data: wordData })
     } catch {}
-  }, [])
+  }, [savedWords])
 
   const handleWordLongPress = useCallback(async (word: string) => {
     setWordModalLoading(true)
@@ -117,7 +138,14 @@ export function ArticlePage() {
   const saveWords = useMutation({
     mutationFn: () =>
       vocabularyApi.save(Array.from(savePopup.selectedIds), savePopup.articleId),
-    onSuccess: () => setSavePopup(prev => ({ ...prev, open: false })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vocabulary'] })
+      navigate(-1)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      alert(msg ?? 'Failed to save words. Please try again.')
+    },
   })
 
   const playWord = useCallback((word: string, audioUrl?: string) => {
@@ -154,7 +182,7 @@ export function ArticlePage() {
   return (
     <div className="space-y-6" onClick={() => setTooltip(null)}>
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+        <button onClick={handleLeave} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
@@ -171,10 +199,19 @@ export function ArticlePage() {
         <p className="text-base">
           {tokens.map(({ text, isWord }, idx) => {
             if (!isWord) return <span key={idx}>{text}</span>
+            const lower = text.toLowerCase()
+            const alreadySaved = savedWords.has(lower)
+            const highlighted = highlightedWords.has(lower)
             return (
               <span
                 key={idx}
-                className="cursor-pointer rounded hover:bg-yellow-100 hover:underline decoration-dotted"
+                className={`cursor-pointer rounded decoration-dotted hover:underline ${
+                  alreadySaved
+                    ? 'bg-green-100 text-green-700'
+                    : highlighted
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'hover:bg-yellow-100'
+                }`}
                 onClick={(e) => handleWordClick(text, e)}
                 onMouseDown={() => {
                   isLongPressRef.current = false
@@ -339,8 +376,11 @@ export function ArticlePage() {
                   className="w-full"
                   onClick={async () => {
                     const res = await vocabularyApi.save([wordModal.id], id)
-                    if (res.data.data[0]) {
-                      setWordModal({ ...wordModal, isSavedByUser: true, userVocabularyId: res.data.data[0].id })
+                    if (res.data.data.saved.length > 0) {
+                      setWordModal({ ...wordModal, isSavedByUser: true })
+                      setSavedWords(prev => new Set(prev).add(wordModal.word.toLowerCase()))
+                      clickedWordsRef.current.delete(wordModal.id)
+                      queryClient.invalidateQueries({ queryKey: ['vocabulary'] })
                     }
                   }}
                 >
@@ -384,7 +424,7 @@ export function ArticlePage() {
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => setSavePopup(prev => ({ ...prev, open: false }))}
+            onClick={() => navigate(-1)}
           >
             Skip
           </Button>

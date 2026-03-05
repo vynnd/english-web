@@ -6,11 +6,18 @@ export interface VocabularyEntry {
   word: string
   phonetic: string
   partOfSpeech: string
+  vnMeaning: string
   definitions: string[]
-  srsLevel: number
+  memoryState: string
   appLevel: number
   savedAt: string
   nextReviewAt: string | null
+}
+
+export interface SaveResult {
+  saved: string[]
+  skipped: string[]
+  limitReached?: boolean
 }
 
 export interface DueWord {
@@ -27,7 +34,7 @@ export const vocabularyApi = {
     api.get<{ success: boolean; data: { saved: number; limit: number; remaining: number } }>('/vocabulary/daily-limit'),
 
   save: (wordIds: string[], sourceArticleId?: string) =>
-    api.post<{ success: boolean; data: VocabularyEntry[] }>('/vocabulary/save', { wordIds, sourceArticleId }),
+    api.post<{ success: boolean; data: SaveResult }>('/vocabulary/save', { wordIds, sourceArticleId }),
 
   list: (params: { page?: number; size?: number }) =>
     api.get<{ success: boolean; data: { content: VocabularyEntry[]; page: number; totalPages: number } }>('/vocabulary', { params }),
@@ -40,4 +47,7 @@ export const vocabularyApi = {
 
   getDue: () =>
     api.get<{ success: boolean; data: DueWord[] }>('/vocabulary/due'),
+
+  getSavedInArticle: (articleId: string) =>
+    api.get<{ success: boolean; data: string[] }>(`/vocabulary/saved-in-article/${articleId}`),
 }

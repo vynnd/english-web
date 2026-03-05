@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -32,6 +31,6 @@ public class WordClickEvent {
     @JoinColumn(name = "reading_session_id")
     private ReadingSession readingSession;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant clickedAt;
 }

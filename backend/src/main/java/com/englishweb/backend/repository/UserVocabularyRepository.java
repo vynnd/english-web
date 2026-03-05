@@ -27,6 +27,9 @@ public interface UserVocabularyRepository extends JpaRepository<UserVocabulary, 
 
     Page<UserVocabulary> findByUserId(UUID userId, Pageable pageable);
 
+    @Query("SELECT v.word.word FROM UserVocabulary v WHERE v.user.id = :userId AND v.sourceArticle.id = :articleId")
+    List<String> findSavedWordTextsByArticle(UUID userId, UUID articleId);
+
     @Query("SELECT v FROM UserVocabulary v JOIN FETCH v.word WHERE v.user.id = :userId AND v.applicationLevel >= 2 ORDER BY v.srsDueAt ASC LIMIT 2")
     List<UserVocabulary> findNearDue(UUID userId);
 

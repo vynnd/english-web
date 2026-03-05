@@ -21,7 +21,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ENUMS
 -- ─────────────────────────────────────────────────────────────
 
-CREATE TYPE memory_state  AS ENUM ('NEW', 'LEARNING', 'REVIEW', 'MASTERED', 'RELEARNING');
+-- memory_state stored as VARCHAR(20); valid values: NEW, LEARNING, REVIEW, MASTERED, RELEARNING
 CREATE TYPE srs_grade     AS ENUM ('EASY', 'GOOD', 'HARD', 'AGAIN');
 CREATE TYPE srs_phase     AS ENUM ('LEARNING', 'REVIEW');
 CREATE TYPE lang_level    AS ENUM ('A1', 'A2', 'B1', 'B2', 'C1', 'C2');
@@ -170,7 +170,7 @@ CREATE TABLE user_vocabulary (
     word_id                 UUID         NOT NULL REFERENCES words(id),
 
     -- SRS memory fields
-    memory_state            memory_state NOT NULL DEFAULT 'NEW',
+    memory_state            VARCHAR(20)   NOT NULL DEFAULT 'NEW',
     srs_interval_minutes    INT          NOT NULL DEFAULT 0,
     srs_due_at              TIMESTAMPTZ,
     review_count            INT          NOT NULL DEFAULT 0,

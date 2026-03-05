@@ -1,9 +1,9 @@
 package com.englishweb.backend.service;
 
 import com.englishweb.backend.entity.*;
-import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
 import java.util.*;
+import java.util.LinkedHashMap;
 
 @Service
 public class VocabularyService {
@@ -88,24 +89,69 @@ public class VocabularyService {
         return result;
     }
 
-    public Page<UserVocabulary> getVocabulary(UUID userId, Pageable pageable) {
-        return userVocabularyRepository.findByUserId(userId, pageable);
+    @Transactional(readOnly = true)
+    public Map<String, Object> getVocabulary(UUID userId, Pageable pageable) {
+        Page<UserVocabulary> page = userVocabularyRepository.findByUserId(userId, pageable);
+        List<Map<String, Object>> content = page.getContent().stream().map(this::mapUv).toList();
+        return Map.of("content", content, "page", page.getNumber(), "totalPages", page.getTotalPages(), "totalElements", page.getTotalElements());
     }
 
-    public UserVocabulary getVocabularyEntry(UUID userId, UUID uvId) {
+    @Transactional(readOnly = true)
+    public Map<String, Object> getVocabularyEntry(UUID userId, UUID uvId) {
         UserVocabulary uv = userVocabularyRepository.findById(uvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vocabulary entry not found"));
         if (!uv.getUser().getId().equals(userId)) throw new ResourceNotFoundException("Vocabulary entry not found");
-        return uv;
+        return mapUv(uv);
     }
 
     @Transactional
     public void deleteVocabularyEntry(UUID userId, UUID uvId) {
-        UserVocabulary uv = getVocabularyEntry(userId, uvId);
+        UserVocabulary uv = userVocabularyRepository.findById(uvId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vocabulary entry not found"));
+        if (!uv.getUser().getId().equals(userId)) throw new ResourceNotFoundException("Vocabulary entry not found");
         userVocabularyRepository.delete(uv);
     }
 
-    public List<UserVocabulary> getDueForReview(UUID userId) {
-        return userVocabularyRepository.findDueForReview(userId, Instant.now());
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDueForReview(UUID userId) {
+        return userVocabularyRepository.findDueForReview(userId, Instant.now())
+                .stream().map(this::mapUv).toList();
+    }
+
+    public List<String> getSavedWordsInArticle(UUID userId, UUID articleId) {
+        return userVocabularyRepository.findSavedWordTextsByArticle(userId, articleId);
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private Map<String, Object> mapUv(UserVocabulary uv) {
+        Word w = uv.getWord();
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", uv.getId());
+        item.put("wordId", w.getId());
+        item.put("word", w.getWord());
+        item.put("phonetic", w.getPhonetic() != null ? w.getPhonetic() : "");
+        item.put("partOfSpeech", w.getPartOfSpeech() != null ? w.getPartOfSpeech() : "");
+        item.put("vnMeaning", w.getVnMeaning() != null ? w.getVnMeaning() : "");
+        item.put("definitions", parseDefinitions(w.getDefinitions()));
+        item.put("memoryState", uv.getMemoryState());
+        item.put("appLevel", uv.getApplicationLevel());
+        item.put("nextReviewAt", uv.getSrsDueAt());
+        item.put("savedAt", uv.getSavedAt());
+        return item;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> parseDefinitions(String json) {
+        try {
+            List<Map<String, Object>> list = MAPPER.readValue(json,
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
+            return list.stream()
+                    .map(m -> (String) m.get("meaning"))
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }
