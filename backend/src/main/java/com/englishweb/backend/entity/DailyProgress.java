@@ -2,8 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,9 +54,9 @@ public class DailyProgress {
     @Column(nullable = false)
     private Integer streakCount = 0;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant createdAt;
 
-    @UpdateTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant updatedAt;
 }

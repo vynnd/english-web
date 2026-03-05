@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -43,6 +42,6 @@ public class ApplicationTask {
     private LocalDate weekReference;
     private Instant completedAt;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant createdAt;
 }

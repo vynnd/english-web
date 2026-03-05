@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +29,6 @@ public class UserGoal {
     @Column(nullable = false)
     private LocalDate effectiveFrom;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant createdAt;
 }

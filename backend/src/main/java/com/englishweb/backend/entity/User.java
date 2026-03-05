@@ -2,8 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -54,9 +52,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private String role = "USER";  // USER | ADMIN
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant createdAt;
 
-    @UpdateTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant updatedAt;
 }

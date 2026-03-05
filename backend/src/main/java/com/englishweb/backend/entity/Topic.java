@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -30,6 +29,6 @@ public class Topic {
     @Column(nullable = false)
     private Boolean isActive = true;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant createdAt;
 }

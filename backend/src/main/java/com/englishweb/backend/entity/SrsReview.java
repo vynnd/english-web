@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -35,6 +34,6 @@ public class SrsReview {
     private Integer previousIntervalMinutes;
     private Integer newIntervalMinutes;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant reviewedAt;
 }

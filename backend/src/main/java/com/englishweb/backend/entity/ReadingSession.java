@@ -2,7 +2,6 @@ package com.englishweb.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -24,7 +23,7 @@ public class ReadingSession {
     @JoinColumn(name = "article_id", nullable = false)
     private Article article;
 
-    @CreationTimestamp
+    @Column(insertable = false, updatable = false)
     private Instant startedAt;
 
     private Instant endedAt;

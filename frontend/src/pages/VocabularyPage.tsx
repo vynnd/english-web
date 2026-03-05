@@ -74,7 +74,7 @@ export function VocabularyPage() {
                       )}
                     </div>
                     <p className="mt-0.5 text-sm text-gray-600 truncate">
-                      {entry.definitions?.[0]}
+                      {entry.vnMeaning || entry.definitions?.[0]}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <Badge color={appLevelColors[entry.appLevel] ?? 'gray'}>

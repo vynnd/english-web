@@ -44,8 +44,7 @@ public class VocabularyController {
                                                               @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(ud.getUsername());
         Pageable pageable = PageRequest.of(page, size, Sort.by("savedAt").descending());
-        var result = vocabularyService.getVocabulary(userId, pageable);
-        return ok(Map.of("content", result.getContent(), "page", result.getNumber(), "totalPages", result.getTotalPages()));
+        return ok(vocabularyService.getVocabulary(userId, pageable));
     }
 
     @GetMapping("/{id}")
@@ -61,6 +60,13 @@ public class VocabularyController {
         UUID userId = UUID.fromString(ud.getUsername());
         vocabularyService.deleteVocabularyEntry(userId, id);
         return ok("Deleted");
+    }
+
+    @GetMapping("/saved-in-article/{articleId}")
+    public ResponseEntity<Map<String, Object>> getSavedInArticle(@AuthenticationPrincipal UserDetails ud,
+                                                                   @PathVariable UUID articleId) {
+        UUID userId = UUID.fromString(ud.getUsername());
+        return ok(vocabularyService.getSavedWordsInArticle(userId, articleId));
     }
 
     @GetMapping("/due")
