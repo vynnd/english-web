@@ -49,6 +49,7 @@ CREATE TABLE users (
     tier             user_tier    NOT NULL DEFAULT 'NONE',
     current_streak   INT          NOT NULL DEFAULT 0,
     longest_streak   INT          NOT NULL DEFAULT 0,
+    role             VARCHAR(20)  NOT NULL DEFAULT 'USER',  -- 'USER' | 'ADMIN'
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -101,8 +102,10 @@ CREATE TABLE words (
     id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     word           VARCHAR(200) UNIQUE NOT NULL,
     phonetic       VARCHAR(200),
+    audio_url      VARCHAR(500),
     part_of_speech VARCHAR(50),
-    -- [{lang: "vi"|"en", meaning: "..."}]
+    vn_meaning     TEXT,
+    -- [{lang: "en", meaning: "..."}]
     definitions    JSONB        NOT NULL DEFAULT '[]',
     -- [{sentence: "...", translation: "..."}]
     examples       JSONB        NOT NULL DEFAULT '[]',
