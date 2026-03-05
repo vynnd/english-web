@@ -2,7 +2,7 @@ package com.englishweb.backend.service;
 
 import com.englishweb.backend.entity.*;
 import com.englishweb.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -12,12 +12,20 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class RewardService {
 
     private final RewardRepository rewardRepository;
     private final RewardCatalogRepository rewardCatalogRepository;
     private final UserRepository userRepository;
+
+    @Autowired
+    public RewardService(RewardRepository rewardRepository,
+                         RewardCatalogRepository rewardCatalogRepository,
+                         UserRepository userRepository) {
+        this.rewardRepository = rewardRepository;
+        this.rewardCatalogRepository = rewardCatalogRepository;
+        this.userRepository = userRepository;
+    }
 
     @Transactional
     public Reward grantSpin(UUID userId) {

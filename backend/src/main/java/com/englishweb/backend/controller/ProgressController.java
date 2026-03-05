@@ -3,7 +3,7 @@ package com.englishweb.backend.controller;
 import com.englishweb.backend.entity.DailyProgress;
 import com.englishweb.backend.service.ProgressService;
 import com.englishweb.backend.service.UserService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,11 +16,16 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/progress")
-@RequiredArgsConstructor
 public class ProgressController {
 
     private final ProgressService progressService;
     private final UserService userService;
+
+    @Autowired
+    public ProgressController(ProgressService progressService, UserService userService) {
+        this.progressService = progressService;
+        this.userService = userService;
+    }
 
     @GetMapping("/today")
     public ResponseEntity<Map<String, Object>> getToday(@AuthenticationPrincipal UserDetails ud) {

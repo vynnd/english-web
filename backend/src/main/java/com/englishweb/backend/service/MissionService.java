@@ -3,7 +3,7 @@ package com.englishweb.backend.service;
 import com.englishweb.backend.entity.*;
 import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,13 +11,23 @@ import java.time.*;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class MissionService {
 
     private final DailyMissionRepository dailyMissionRepository;
     private final WeeklyMissionRepository weeklyMissionRepository;
     private final UserRepository userRepository;
     private final RewardService rewardService;
+
+    @Autowired
+    public MissionService(DailyMissionRepository dailyMissionRepository,
+                          WeeklyMissionRepository weeklyMissionRepository,
+                          UserRepository userRepository,
+                          RewardService rewardService) {
+        this.dailyMissionRepository = dailyMissionRepository;
+        this.weeklyMissionRepository = weeklyMissionRepository;
+        this.userRepository = userRepository;
+        this.rewardService = rewardService;
+    }
 
     public DailyMission getTodayMission(UUID userId) {
         return dailyMissionRepository.findByUserIdAndDate(userId, LocalDate.now())

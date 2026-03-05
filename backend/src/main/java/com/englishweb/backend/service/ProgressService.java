@@ -6,7 +6,7 @@ import com.englishweb.backend.entity.UserGoal;
 import com.englishweb.backend.repository.DailyProgressRepository;
 import com.englishweb.backend.repository.UserGoalRepository;
 import com.englishweb.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,12 +14,20 @@ import java.time.LocalDate;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class ProgressService {
 
     private final DailyProgressRepository dailyProgressRepository;
     private final UserRepository userRepository;
     private final UserGoalRepository userGoalRepository;
+
+    @Autowired
+    public ProgressService(DailyProgressRepository dailyProgressRepository,
+                           UserRepository userRepository,
+                           UserGoalRepository userGoalRepository) {
+        this.dailyProgressRepository = dailyProgressRepository;
+        this.userRepository = userRepository;
+        this.userGoalRepository = userGoalRepository;
+    }
 
     public DailyProgress getTodayProgress(UUID userId) {
         return dailyProgressRepository.findByUserIdAndDate(userId, LocalDate.now())

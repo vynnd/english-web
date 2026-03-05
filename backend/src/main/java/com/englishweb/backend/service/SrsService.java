@@ -4,7 +4,7 @@ import com.englishweb.backend.entity.*;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
 import com.englishweb.backend.util.SrsCalculator;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class SrsService {
 
     private final UserVocabularyRepository userVocabularyRepository;
@@ -22,6 +21,21 @@ public class SrsService {
     private final ProgressService progressService;
     private final MissionService missionService;
     private final PointsService pointsService;
+
+    @Autowired
+    public SrsService(UserVocabularyRepository userVocabularyRepository,
+                      SrsReviewRepository srsReviewRepository,
+                      SrsCalculator srsCalculator,
+                      ProgressService progressService,
+                      MissionService missionService,
+                      PointsService pointsService) {
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.srsReviewRepository = srsReviewRepository;
+        this.srsCalculator = srsCalculator;
+        this.progressService = progressService;
+        this.missionService = missionService;
+        this.pointsService = pointsService;
+    }
 
     @Transactional
     public Map<String, Object> submitReview(UUID userId, UUID userVocabularyId, int responseTimeMs) {

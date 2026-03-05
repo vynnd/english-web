@@ -25,10 +25,16 @@ public class Word {
     @Column(length = 200)
     private String phonetic;
 
+    @Column(length = 500)
+    private String audioUrl;
+
     @Column(length = 50)
     private String partOfSpeech;
 
-    // [{lang:"vi"|"en", meaning:"..."}]
+    @Column(columnDefinition = "TEXT")
+    private String vnMeaning;
+
+    // [{lang:"en", meaning:"..."}]
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
     private String definitions = "[]";

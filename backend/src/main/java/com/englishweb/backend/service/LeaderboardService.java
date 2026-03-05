@@ -2,7 +2,7 @@ package com.englishweb.backend.service;
 
 import com.englishweb.backend.entity.LeaderboardSnapshot;
 import com.englishweb.backend.repository.LeaderboardSnapshotRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -10,10 +10,14 @@ import java.util.*;
 import java.util.HashMap;
 
 @Service
-@RequiredArgsConstructor
 public class LeaderboardService {
 
     private final LeaderboardSnapshotRepository leaderboardSnapshotRepository;
+
+    @Autowired
+    public LeaderboardService(LeaderboardSnapshotRepository leaderboardSnapshotRepository) {
+        this.leaderboardSnapshotRepository = leaderboardSnapshotRepository;
+    }
 
     public List<LeaderboardSnapshot> getLeaderboard(String tier) {
         LocalDate latestPeriod = LocalDate.now().withDayOfMonth(1);

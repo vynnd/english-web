@@ -4,7 +4,7 @@ import com.englishweb.backend.entity.*;
 import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +13,23 @@ import java.time.LocalDate;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class ApplicationAssessmentService {
 
     private final UserVocabularyRepository userVocabularyRepository;
     private final ApplicationTaskRepository applicationTaskRepository;
     private final MissionService missionService;
     private final PointsService pointsService;
+
+    @Autowired
+    public ApplicationAssessmentService(UserVocabularyRepository userVocabularyRepository,
+                                         ApplicationTaskRepository applicationTaskRepository,
+                                         MissionService missionService,
+                                         PointsService pointsService) {
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.applicationTaskRepository = applicationTaskRepository;
+        this.missionService = missionService;
+        this.pointsService = pointsService;
+    }
 
     public Map<String, Object> getStatus(UUID userId, UUID uvId) {
         UserVocabulary uv = getUv(userId, uvId);

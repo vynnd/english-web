@@ -1,7 +1,7 @@
 package com.englishweb.backend.controller;
 
 import com.englishweb.backend.service.WeeklyReviewService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,10 +12,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/weekly-review")
-@RequiredArgsConstructor
 public class WeeklyReviewController {
 
     private final WeeklyReviewService weeklyReviewService;
+
+    @Autowired
+    public WeeklyReviewController(WeeklyReviewService weeklyReviewService) {
+        this.weeklyReviewService = weeklyReviewService;
+    }
 
     record CompleteTaskRequest(UUID applicationTaskId) {}
 

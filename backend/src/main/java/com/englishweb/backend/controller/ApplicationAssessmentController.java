@@ -4,7 +4,7 @@ import com.englishweb.backend.service.ApplicationAssessmentService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,10 +15,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/vocabulary/{id}/application")
-@RequiredArgsConstructor
 public class ApplicationAssessmentController {
 
     private final ApplicationAssessmentService applicationAssessmentService;
+
+    @Autowired
+    public ApplicationAssessmentController(ApplicationAssessmentService applicationAssessmentService) {
+        this.applicationAssessmentService = applicationAssessmentService;
+    }
 
     record SubmitRequest(@NotNull UUID taskId, @NotBlank String response, int responseTimeMs) {}
 

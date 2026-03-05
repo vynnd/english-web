@@ -2,7 +2,7 @@ package com.englishweb.backend.controller;
 
 import com.englishweb.backend.entity.Word;
 import com.englishweb.backend.service.WordService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,24 +12,31 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/words")
-@RequiredArgsConstructor
 public class WordController {
 
     private final WordService wordService;
 
-    // Single-click: quick tooltip (pronunciation + short meaning)
+    @Autowired
+    public WordController(WordService wordService) {
+        this.wordService = wordService;
+    }
+
+    // Single-click: quick tooltip (id + pronunciation + short meaning)
     @GetMapping("/{word}/tooltip")
     public ResponseEntity<Map<String, Object>> getTooltip(@PathVariable String word) {
         Word w = wordService.getWordByText(word);
-        return ok(Map.of(
-                "word", w.getWord(),
-                "phonetic", w.getPhonetic() != null ? w.getPhonetic() : "",
-                "partOfSpeech", w.getPartOfSpeech() != null ? w.getPartOfSpeech() : "",
-                "definitions", w.getDefinitions()
-        ));
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", w.getId());
+        data.put("word", w.getWord());
+        data.put("phonetic", w.getPhonetic() != null ? w.getPhonetic() : "");
+        data.put("audioUrl", w.getAudioUrl() != null ? w.getAudioUrl() : "");
+        data.put("partOfSpeech", w.getPartOfSpeech() != null ? w.getPartOfSpeech() : "");
+        data.put("vnMeaning", w.getVnMeaning() != null ? w.getVnMeaning() : "");
+        data.put("definitions", wordService.parseJson(w.getDefinitions()));
+        return ok(data);
     }
 
-    // Hold 1-1.5s: full card with examples, collocations, saved status
+    // Hold 1.5s: full card with examples, collocations, saved status
     @GetMapping("/{word}/detail")
     public ResponseEntity<Map<String, Object>> getDetail(@PathVariable String word,
                                                           @AuthenticationPrincipal UserDetails userDetails) {
@@ -42,17 +49,19 @@ public class WordController {
             uvId = wordService.getUserVocabularyId(userId, w.getId());
         }
 
-        return ok(Map.of(
-                "id", w.getId(),
-                "word", w.getWord(),
-                "phonetic", w.getPhonetic() != null ? w.getPhonetic() : "",
-                "partOfSpeech", w.getPartOfSpeech() != null ? w.getPartOfSpeech() : "",
-                "definitions", w.getDefinitions(),
-                "examples", w.getExamples(),
-                "collocations", w.getCollocations(),
-                "isSavedByUser", isSaved,
-                "userVocabularyId", uvId != null ? uvId : ""
-        ));
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", w.getId());
+        data.put("word", w.getWord());
+        data.put("phonetic", w.getPhonetic() != null ? w.getPhonetic() : "");
+        data.put("audioUrl", w.getAudioUrl() != null ? w.getAudioUrl() : "");
+        data.put("partOfSpeech", w.getPartOfSpeech() != null ? w.getPartOfSpeech() : "");
+        data.put("definitions", wordService.parseJson(w.getDefinitions()));
+        data.put("examples", wordService.parseJson(w.getExamples()));
+        data.put("collocations", wordService.parseJson(w.getCollocations()));
+        data.put("vnMeaning", w.getVnMeaning() != null ? w.getVnMeaning() : "");
+        data.put("isSavedByUser", isSaved);
+        data.put("userVocabularyId", uvId != null ? uvId : "");
+        return ok(data);
     }
 
     private ResponseEntity<Map<String, Object>> ok(Object data) {

@@ -2,7 +2,7 @@ package com.englishweb.backend.controller;
 
 import com.englishweb.backend.service.LeaderboardService;
 import com.englishweb.backend.service.PointsService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,11 +14,16 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
-@RequiredArgsConstructor
 public class LeaderboardController {
 
     private final LeaderboardService leaderboardService;
     private final PointsService pointsService;
+
+    @Autowired
+    public LeaderboardController(LeaderboardService leaderboardService, PointsService pointsService) {
+        this.leaderboardService = leaderboardService;
+        this.pointsService = pointsService;
+    }
 
     @GetMapping("/leaderboard")
     public ResponseEntity<Map<String, Object>> getLeaderboard(

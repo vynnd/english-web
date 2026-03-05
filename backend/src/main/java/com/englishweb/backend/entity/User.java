@@ -26,23 +26,33 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean isPremium = false;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer dailyWordLimit = 5;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer totalPoints = 0;
 
+    @Builder.Default
     @Column(nullable = false, length = 20)
     private String tier = "NONE";
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer currentStreak = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer longestStreak = 0;
+
+    @Builder.Default
+    @Column(nullable = false, length = 20)
+    private String role = "USER";  // USER | ADMIN
 
     @CreationTimestamp
     private Instant createdAt;

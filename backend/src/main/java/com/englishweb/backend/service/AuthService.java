@@ -4,7 +4,7 @@ import com.englishweb.backend.entity.User;
 import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.repository.UserRepository;
 import com.englishweb.backend.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +13,18 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+
+    @Autowired
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+    }
 
     @Transactional
     public Map<String, Object> register(String email, String username, String password) {
@@ -56,7 +62,7 @@ public class AuthService {
         return Map.of(
                 "accessToken", jwtUtil.generateAccessToken(user.getId(), user.getEmail()),
                 "refreshToken", jwtUtil.generateRefreshToken(user.getId()),
-                "user", Map.of("id", user.getId(), "email", user.getEmail(), "username", user.getUsername())
+                "user", Map.of("id", user.getId(), "email", user.getEmail(), "username", user.getUsername(), "role", user.getRole())
         );
     }
 }

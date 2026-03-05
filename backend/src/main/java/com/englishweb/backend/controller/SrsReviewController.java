@@ -4,7 +4,7 @@ import com.englishweb.backend.service.SrsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,10 +15,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/srs")
-@RequiredArgsConstructor
 public class SrsReviewController {
 
     private final SrsService srsService;
+
+    @Autowired
+    public SrsReviewController(SrsService srsService) {
+        this.srsService = srsService;
+    }
 
     record ReviewRequest(@NotNull UUID userVocabularyId, @Min(0) int responseTimeMs) {}
 

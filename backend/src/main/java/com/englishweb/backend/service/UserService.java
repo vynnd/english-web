@@ -5,7 +5,7 @@ import com.englishweb.backend.entity.UserGoal;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.UserGoalRepository;
 import com.englishweb.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,15 +13,28 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserGoalRepository userGoalRepository;
 
+    @Autowired
+    public UserService(UserRepository userRepository, UserGoalRepository userGoalRepository) {
+        this.userRepository = userRepository;
+        this.userGoalRepository = userGoalRepository;
+    }
+
     public User getUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    @Transactional
+    public User upgradeToPremium(UUID userId) {
+        User user = getUser(userId);
+        user.setIsPremium(true);
+        user.setDailyWordLimit(20);
+        return userRepository.save(user);
     }
 
     @Transactional

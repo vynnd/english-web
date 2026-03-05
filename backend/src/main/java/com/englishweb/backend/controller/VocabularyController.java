@@ -3,7 +3,7 @@ package com.englishweb.backend.controller;
 import com.englishweb.backend.service.VocabularyService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,10 +14,14 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/vocabulary")
-@RequiredArgsConstructor
 public class VocabularyController {
 
     private final VocabularyService vocabularyService;
+
+    @Autowired
+    public VocabularyController(VocabularyService vocabularyService) {
+        this.vocabularyService = vocabularyService;
+    }
 
     record SaveRequest(@NotEmpty List<UUID> wordIds, UUID sourceArticleId) {}
 

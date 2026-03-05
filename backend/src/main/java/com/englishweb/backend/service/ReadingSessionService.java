@@ -3,15 +3,15 @@ package com.englishweb.backend.service;
 import com.englishweb.backend.entity.*;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ReadingSessionService {
 
     private final ReadingSessionRepository readingSessionRepository;
@@ -21,6 +21,26 @@ public class ReadingSessionService {
     private final UserRepository userRepository;
     private final UserVocabularyRepository userVocabularyRepository;
     private final ProgressService progressService;
+    private final WordService wordService;
+
+    @Autowired
+    public ReadingSessionService(ReadingSessionRepository readingSessionRepository,
+                                  WordClickEventRepository wordClickEventRepository,
+                                  ArticleRepository articleRepository,
+                                  WordRepository wordRepository,
+                                  UserRepository userRepository,
+                                  UserVocabularyRepository userVocabularyRepository,
+                                  ProgressService progressService,
+                                  WordService wordService) {
+        this.readingSessionRepository = readingSessionRepository;
+        this.wordClickEventRepository = wordClickEventRepository;
+        this.articleRepository = articleRepository;
+        this.wordRepository = wordRepository;
+        this.userRepository = userRepository;
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.progressService = progressService;
+        this.wordService = wordService;
+    }
 
     @Transactional
     public ReadingSession startSession(UUID userId, UUID articleId) {
@@ -67,13 +87,13 @@ public class ReadingSessionService {
             Word word = click.getWord();
             if (seen.add(word.getId())) {
                 boolean isSaved = userVocabularyRepository.existsByUserIdAndWordId(userId, word.getId());
-                result.add(Map.of(
-                        "wordId", word.getId(),
-                        "word", word.getWord(),
-                        "phonetic", word.getPhonetic() != null ? word.getPhonetic() : "",
-                        "definitions", word.getDefinitions(),
-                        "isAlreadySaved", isSaved
-                ));
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("wordId", word.getId());
+                entry.put("word", word.getWord());
+                entry.put("phonetic", word.getPhonetic() != null ? word.getPhonetic() : "");
+                entry.put("definitions", wordService.parseJson(word.getDefinitions()));
+                entry.put("isAlreadySaved", isSaved);
+                result.add(entry);
             }
         }
         return result;

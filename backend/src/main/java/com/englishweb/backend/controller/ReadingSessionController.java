@@ -3,7 +3,7 @@ package com.englishweb.backend.controller;
 import com.englishweb.backend.service.ReadingSessionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,10 +14,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/reading-sessions")
-@RequiredArgsConstructor
 public class ReadingSessionController {
 
     private final ReadingSessionService readingSessionService;
+
+    @Autowired
+    public ReadingSessionController(ReadingSessionService readingSessionService) {
+        this.readingSessionService = readingSessionService;
+    }
 
     record StartRequest(@NotNull UUID articleId) {}
     record EndRequest(int durationSeconds) {}

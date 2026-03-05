@@ -7,7 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,10 +18,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/users")
-@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+
+    @Autowired
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     record UpdateUsernameRequest(@NotBlank String username) {}
     record UpdateGoalRequest(@Min(1) @Max(480) int readingMinutesGoal, @Min(1) @Max(50) int vocabCountGoal) {}
@@ -32,10 +36,17 @@ public class UserController {
         User user = userService.getUser(userId);
         return ok(Map.of(
                 "id", user.getId(), "email", user.getEmail(), "username", user.getUsername(),
-                "isPremium", user.getIsPremium(), "totalPoints", user.getTotalPoints(),
+                "role", user.getRole(), "isPremium", user.getIsPremium(), "totalPoints", user.getTotalPoints(),
                 "tier", user.getTier(), "currentStreak", user.getCurrentStreak(),
                 "longestStreak", user.getLongestStreak(), "dailyWordLimit", user.getDailyWordLimit()
         ));
+    }
+
+    @PatchMapping("/me/premium")
+    public ResponseEntity<Map<String, Object>> upgradePremium(@AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        User user = userService.upgradeToPremium(userId);
+        return ok(Map.of("isPremium", user.getIsPremium(), "dailyWordLimit", user.getDailyWordLimit()));
     }
 
     @PutMapping("/me")

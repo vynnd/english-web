@@ -5,7 +5,7 @@ import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +13,6 @@ import java.time.*;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class WeeklyReviewService {
 
     private final WeeklyReviewSetRepository weeklyReviewSetRepository;
@@ -21,6 +20,19 @@ public class WeeklyReviewService {
     private final UserVocabularyRepository userVocabularyRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    public WeeklyReviewService(WeeklyReviewSetRepository weeklyReviewSetRepository,
+                                WeeklyReviewTaskRepository weeklyReviewTaskRepository,
+                                UserVocabularyRepository userVocabularyRepository,
+                                UserRepository userRepository,
+                                ObjectMapper objectMapper) {
+        this.weeklyReviewSetRepository = weeklyReviewSetRepository;
+        this.weeklyReviewTaskRepository = weeklyReviewTaskRepository;
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public Map<String, Object> getCurrentWeekReview(UUID userId) {
         int activeLv2Plus = userVocabularyRepository.countActiveLv2Plus(userId);

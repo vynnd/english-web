@@ -1,7 +1,7 @@
 package com.englishweb.backend.controller;
 
 import com.englishweb.backend.service.RewardService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,10 +13,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/rewards")
-@RequiredArgsConstructor
 public class RewardController {
 
     private final RewardService rewardService;
+
+    @Autowired
+    public RewardController(RewardService rewardService) {
+        this.rewardService = rewardService;
+    }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getHistory(@AuthenticationPrincipal UserDetails ud,

@@ -4,7 +4,7 @@ import com.englishweb.backend.entity.User;
 import com.englishweb.backend.entity.UserPointsLog;
 import com.englishweb.backend.repository.UserPointsLogRepository;
 import com.englishweb.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -13,11 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class PointsService {
 
     private final UserRepository userRepository;
     private final UserPointsLogRepository userPointsLogRepository;
+
+    @Autowired
+    public PointsService(UserRepository userRepository, UserPointsLogRepository userPointsLogRepository) {
+        this.userRepository = userRepository;
+        this.userPointsLogRepository = userPointsLogRepository;
+    }
 
     @Transactional
     public void addPoints(UUID userId, int points, String reason, UUID referenceId) {

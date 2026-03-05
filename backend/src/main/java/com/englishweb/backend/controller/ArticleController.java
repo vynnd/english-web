@@ -2,7 +2,7 @@ package com.englishweb.backend.controller;
 
 import com.englishweb.backend.entity.Article;
 import com.englishweb.backend.service.ArticleService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,10 +11,14 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/articles")
-@RequiredArgsConstructor
 public class ArticleController {
 
     private final ArticleService articleService;
+
+    @Autowired
+    public ArticleController(ArticleService articleService) {
+        this.articleService = articleService;
+    }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getArticles(

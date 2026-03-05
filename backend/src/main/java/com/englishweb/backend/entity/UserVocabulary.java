@@ -26,7 +26,7 @@ public class UserVocabulary {
     private Word word;
 
     // SRS fields
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "memory_state")
     private String memoryState = "NEW"; // NEW|LEARNING|REVIEW|MASTERED|RELEARNING
 
     @Column(nullable = false)

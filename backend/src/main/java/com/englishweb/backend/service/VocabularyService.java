@@ -4,7 +4,7 @@ import com.englishweb.backend.entity.*;
 import com.englishweb.backend.exception.BadRequestException;
 import com.englishweb.backend.exception.ResourceNotFoundException;
 import com.englishweb.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,7 +14,6 @@ import java.time.*;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class VocabularyService {
 
     private final UserVocabularyRepository userVocabularyRepository;
@@ -22,6 +21,19 @@ public class VocabularyService {
     private final WordRepository wordRepository;
     private final ArticleRepository articleRepository;
     private final ProgressService progressService;
+
+    @Autowired
+    public VocabularyService(UserVocabularyRepository userVocabularyRepository,
+                              UserRepository userRepository,
+                              WordRepository wordRepository,
+                              ArticleRepository articleRepository,
+                              ProgressService progressService) {
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.userRepository = userRepository;
+        this.wordRepository = wordRepository;
+        this.articleRepository = articleRepository;
+        this.progressService = progressService;
+    }
 
     public Map<String, Object> getDailyLimit(UUID userId) {
         User user = userRepository.findById(userId).orElseThrow();
